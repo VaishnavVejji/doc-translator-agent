@@ -1,40 +1,39 @@
+# app.py
 import streamlit as st
 from translator import extract_and_translate
-from storage import save_translation, list_archives, load_archive
+import os
 
-st.set_page_config(page_title="Document Translation & Archival Agent", layout="wide")
+st.set_page_config(page_title="Document Translator Agent", layout="centered")
+st.title("📄 Document Translator & Archival Agent")
 
-st.title("📄 Simple Document Translation & Archival Agent")
+# --- File Upload ---
+uploaded_file = st.file_uploader("Upload a PDF or DOCX file", type=["pdf", "docx"])
 
-tab1, tab2 = st.tabs(["🌐 Translate Document", "📚 View Archives"])
+# --- Target Language Selection ---
+target_lang = st.selectbox(
+    "Select target language:",
+    ("en", "hi", "fr", "es", "de", "zh")  # English, Hindi, French, Spanish, German, Chinese
+)
 
-with tab1:
-    uploaded_file = st.file_uploader("Upload a document (PDF or DOCX)", type=["pdf", "docx"])
-    target_lang = st.selectbox("Select target language", ["en", "hi", "fr", "es", "de", "ml", "ta"])
+# --- Process File ---
+if uploaded_file is not None:
+    # Save uploaded file temporarily
+    save_path = os.path.join("temp_upload", uploaded_file.name)
+    os.makedirs("temp_upload", exist_ok=True)
+    
+    with open(save_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
-    if uploaded_file is not None:
-        if st.button("Translate & Save"):
-            with st.spinner("Processing..."):
-                text, translated = extract_and_translate(uploaded_file, target_lang)
-                st.subheader("Original Text:")
-                st.write(text[:1000] + "..." if len(text) > 1000 else text)
+    st.info("Extracting and translating text... ⏳")
 
-                st.subheader("Translated Text:")
-                st.write(translated)
+    # Extract & Translate
+    translated_text = extract_and_translate(save_path, target_lang)
 
-                file_id = save_translation(uploaded_file.name, text, translated, target_lang)
-                st.success(f"✅ Translation archived with ID: {file_id}")
-
-with tab2:
-    st.subheader("Saved Translations")
-    archives = list_archives()
-    if archives:
-        for a in archives:
-            if st.button(f"View {a}"):
-                data = load_archive(a)
-                st.write(f"**File:** {data['filename']}")
-                st.write(f"**Language:** {data['language']}")
-                st.write("**Original:**", data["original"][:500] + "...")
-                st.write("**Translated:**", data["translated"][:500] + "...")
+    if translated_text:
+        st.success("✅ Translation completed!")
+        st.text_area("Translated Text", translated_text, height=300)
     else:
-        st.info("No archived translations yet.")
+        st.error("❌ Could not translate the file.")
+
+    # Optional: remove temp file
+    os.remove(save_path)

@@ -1,30 +1,74 @@
+# translator.py
 import pdfplumber
-import docx
-from googletrans import Translator
+from docx import Document
+from deep_translator import GoogleTranslator
 
-def extract_text_from_pdf(file):
-    """Extract all text from a PDF file."""
-    with pdfplumber.open(file) as pdf:
-        return "\n".join(page.extract_text() or "" for page in pdf.pages)
+def extract_text_from_pdf(pdf_path):
+    """
+    Extract text from a PDF file using pdfplumber.
+    """
+    text = ""
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+    except Exception as e:
+        print(f"Error extracting PDF: {e}")
+    return text.strip()
 
-def extract_text_from_docx(file):
-    """Extract all text from a Word (.docx) file."""
-    doc = docx.Document(file)
-    return "\n".join(p.text for p in doc.paragraphs)
 
-def extract_and_translate(file, target_lang):
-    """Extract text and translate it using Google Translate."""
-    translator = Translator()
+def extract_text_from_docx(docx_path):
+    """
+    Extract text from a Word (.docx) file using python-docx.
+    """
+    text = ""
+    try:
+        doc = Document(docx_path)
+        for para in doc.paragraphs:
+            text += para.text + "\n"
+    except Exception as e:
+        print(f"Error extracting DOCX: {e}")
+    return text.strip()
 
-    if file.name.endswith(".pdf"):
-        text = extract_text_from_pdf(file)
-    elif file.name.endswith(".docx"):
-        text = extract_text_from_docx(file)
+
+def translate_text(text, target_lang='en'):
+    """
+    Translate text to target language using deep-translator's GoogleTranslator.
+    target_lang: ISO 639-1 language code, e.g., 'en', 'fr', 'hi'
+    """
+    if not text:
+        return ""
+    try:
+        translated = GoogleTranslator(source='auto', target=target_lang).translate(text)
+        return translated
+    except Exception as e:
+        print(f"Error translating text: {e}")
+        return ""
+
+
+def extract_and_translate(file_path, target_lang='en'):
+    """
+    Determine file type, extract text, and translate it.
+    Supports PDF and DOCX.
+    """
+    text = ""
+    if file_path.lower().endswith(".pdf"):
+        text = extract_text_from_pdf(file_path)
+    elif file_path.lower().endswith(".docx"):
+        text = extract_text_from_docx(file_path)
     else:
-        raise ValueError("Unsupported file format. Please upload PDF or DOCX.")
+        print("Unsupported file type. Only PDF and DOCX are supported.")
+        return None
 
-    if not text.strip():
-        raise ValueError("No readable text found in the document.")
+    translated_text = translate_text(text, target_lang)
+    return translated_text
 
-    translation = translator.translate(text, dest=target_lang)
-    return text, translation.text
+
+# Optional test
+if __name__ == "__main__":
+    test_file_pdf = "sample.pdf"
+    test_file_docx = "sample.docx"
+    print("PDF Translation:", extract_and_translate(test_file_pdf, "en"))
+    print("DOCX Translation:", extract_and_translate(test_file_docx, "en"))
